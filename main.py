@@ -53,7 +53,7 @@ def main():
     logger.info("=" * 50)
 
     # Log env var status
-    bot_token = os.environ.get("BOT_TOKEN", "")
+    bot_token = os.environ.get("BOT_TOKEN", "").strip()
     admin_id = os.environ.get("ADMIN_ID", "")
     api_key = os.environ.get("API_KEY", "")
     port = os.environ.get("PORT", "5000")
