@@ -40,9 +40,13 @@ def detect_input_type(text: str) -> str:
     """
     text = text.strip()
 
-    # 10-digit number → Mobile number
-    if re.match(r"^\d{10}$", text):
+    # 10-digit number starting with 6-9 → Indian mobile number
+    if re.match(r"^[6-9]\d{9}$", text):
         return "mobile"
+
+    # 10-digit number starting with 0-5 → BGMI UID (not Indian mobile)
+    if re.match(r"^\d{10}$", text):
+        return "bgmi_uid"
 
     # 12-digit number → Aadhar number
     if re.match(r"^\d{12}$", text):
@@ -52,8 +56,8 @@ def detect_input_type(text: str) -> str:
     if re.match(r"^\d{7,9}$", text):
         return "ff_uid"
 
-    # 10+ digit number (not 10 or 12) → Could be BGMI UID
-    if re.match(r"^\d{10,}$", text) and len(text) != 12:
+    # 11 or 13+ digit number → Could be BGMI UID
+    if re.match(r"^\d{11,}$", text) and len(text) != 12:
         return "bgmi_uid"
 
     # Pure digits of other lengths → try as game UID
@@ -490,7 +494,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "hint_number": "📱 <b>Mobile number type karo (10 digits):</b>\n\n<i>Example: 9876543210</i>\n\n⚡ Auto: Number → Aadhar → Family sab nikal aayega!",
         "hint_aadhar": "🪪 <b>Aadhar number type karo (12 digits):</b>\n\n<i>Example: 393933081942</i>\n\n⚡ Auto: Aadhar → Family → Numbers sab nikal aayega!",
         "hint_ff": "🎮 <b>Free Fire UID type karo (7-9 digits):</b>\n\n<i>Example: 123456789</i>",
-        "hint_bgmi": "🎯 <b>BGMI UID type karo (10+ digits):</b>\n\n<i>Example: 5121439477</i>",
+        "hint_bgmi": "🎯 <b>BGMI UID type karo:</b>\n\n<i>Example: 5121439477</i>\n\n💡 <i>10-digit UID jo 0-5 se start ho = BGMI\n10-digit jo 6-9 se start ho = Mobile</i>",
         "hint_snap": "👻 <b>Snapchat username type karo:</b>\n\n<i>Example: priyapanchal272</i>",
     }
 

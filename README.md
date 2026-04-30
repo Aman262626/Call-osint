@@ -78,9 +78,9 @@ Bot + Website dono start ho jayenge!
 
    | Key | Value |
    |-----|-------|
-   | `BOT_TOKEN` | `8491544250:AAEUCsJ_lT_2oNQWq4CcI0b2-x6g2h_2DvM` |
-   | `ADMIN_ID` | `5451167865` |
-   | `API_KEY` | `ft-key-tr-jzynhifn87aq` |
+   | `BOT_TOKEN` | Your Telegram bot token |
+   | `ADMIN_ID` | Your Telegram user ID |
+   | `API_KEY` | Your OSINT API key |
    | `PORT` | `5000` |
 
 6. **"Create Web Service"** click karo
