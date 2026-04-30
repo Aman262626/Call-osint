@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Call OSINT - Advanced Lookup Tool</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+    <div class="bg-animation">
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+    </div>
+
+    <nav class="navbar">
+        <div class="nav-brand">
+            <i class="fas fa-shield-halved"></i>
+            <span>Call OSINT</span>
+        </div>
+        <div class="nav-links">
+            <a href="#features">Features</a>
+            <a href="#lookup">Lookup</a>
+            <a href="https://t.me/CallOSINTBot" target="_blank" class="btn-telegram">
+                <i class="fab fa-telegram"></i> Bot
+            </a>
+        </div>
+    </nav>
+
+    <header class="hero">
+        <div class="hero-content">
+            <div class="hero-badge">🔒 Advanced OSINT Tool</div>
+            <h1>Call <span class="gradient-text">OSINT</span></h1>
+            <p class="hero-subtitle">Powerful Information Gathering & Lookup Platform</p>
+            <div class="hero-stats">
+                <div class="stat">
+                    <span class="stat-number">6+</span>
+                    <span class="stat-label">Lookup Types</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-number">⚡</span>
+                    <span class="stat-label">Instant Results</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-number">📄</span>
+                    <span class="stat-label">PDF Reports</span>
+                </div>
+            </div>
+            <a href="#lookup" class="btn-primary">
+                <i class="fas fa-search"></i> Start Lookup
+            </a>
+        </div>
+    </header>
+
+    <section id="features" class="features">
+        <h2 class="section-title">🛡️ Available Lookups</h2>
+        <div class="features-grid">
+            <div class="feature-card" onclick="selectLookup('number')">
+                <div class="feature-icon">📱</div>
+                <h3>Number Lookup</h3>
+                <p>Get complete details of any mobile number</p>
+            </div>
+            <div class="feature-card" onclick="selectLookup('aadhar')">
+                <div class="feature-icon">🪪</div>
+                <h3>Aadhar Lookup</h3>
+                <p>Search Aadhar card information</p>
+            </div>
+            <div class="feature-card" onclick="selectLookup('family')">
+                <div class="feature-icon">👨‍👩‍👧‍👦</div>
+                <h3>Family Search</h3>
+                <p>Find family members via Aadhar</p>
+            </div>
+            <div class="feature-card" onclick="selectLookup('ff')">
+                <div class="feature-icon">🎮</div>
+                <h3>Free Fire</h3>
+                <p>Look up Free Fire player details</p>
+            </div>
+            <div class="feature-card" onclick="selectLookup('bgmi')">
+                <div class="feature-icon">🎯</div>
+                <h3>BGMI Lookup</h3>
+                <p>Search BGMI player information</p>
+            </div>
+            <div class="feature-card" onclick="selectLookup('snap')">
+                <div class="feature-icon">👻</div>
+                <h3>Snapchat Info</h3>
+                <p>Get Snapchat profile details</p>
+            </div>
+        </div>
+    </section>
+
+    <section id="lookup" class="lookup-section">
+        <h2 class="section-title">🔍 Search Now</h2>
+        <div class="lookup-container">
+            <div class="lookup-type-selector">
+                <button class="type-btn active" data-type="number" onclick="selectLookup('number')">
+                    📱 Number
+                </button>
+                <button class="type-btn" data-type="aadhar" onclick="selectLookup('aadhar')">
+                    🪪 Aadhar
+                </button>
+                <button class="type-btn" data-type="family" onclick="selectLookup('family')">
+                    👨‍👩‍👧‍👦 Family
+                </button>
+                <button class="type-btn" data-type="ff" onclick="selectLookup('ff')">
+                    🎮 FF
+                </button>
+                <button class="type-btn" data-type="bgmi" onclick="selectLookup('bgmi')">
+                    🎯 BGMI
+                </button>
+                <button class="type-btn" data-type="snap" onclick="selectLookup('snap')">
+                    👻 Snap
+                </button>
+            </div>
+
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Enter mobile number..." autocomplete="off">
+                <button id="searchBtn" onclick="performSearch()">
+                    <i class="fas fa-search"></i> Search
+                </button>
+            </div>
+
+            <div id="loading" class="loading hidden">
+                <div class="spinner"></div>
+                <p>Searching... Please wait</p>
+            </div>
+
+            <div id="results" class="results hidden"></div>
+            <div id="error" class="error-box hidden"></div>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <div class="footer-content">
+            <p>🔒 <strong>Call OSINT</strong> — Advanced OSINT Lookup Tool</p>
+            <div class="footer-links">
+                <a href="https://t.me/CallOSINTBot" target="_blank">
+                    <i class="fab fa-telegram"></i> Telegram Bot
+                </a>
+            </div>
+            <p class="copyright">© 2024 Call OSINT. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        let currentType = 'number';
+
+        const placeholders = {
+            'number': 'Enter mobile number (e.g. 9876543210)',
+            'aadhar': 'Enter Aadhar number (e.g. 393933081942)',
+            'family': 'Enter Aadhar number for family search',
+            'ff': 'Enter Free Fire UID (e.g. 123456789)',
+            'bgmi': 'Enter BGMI UID (e.g. 5121439477)',
+            'snap': 'Enter Snapchat username'
+        };
+
+        function selectLookup(type) {
+            currentType = type;
+            document.getElementById('searchInput').placeholder = placeholders[type];
+            document.querySelectorAll('.type-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.type === type);
+            });
+            document.getElementById('searchInput').focus();
+        }
+
+        async function performSearch() {
+            const query = document.getElementById('searchInput').value.trim();
+            if (!query) {
+                showError('Please enter a valid input!');
+                return;
+            }
+
+            const loading = document.getElementById('loading');
+            const results = document.getElementById('results');
+            const error = document.getElementById('error');
+
+            loading.classList.remove('hidden');
+            results.classList.add('hidden');
+            error.classList.add('hidden');
+
+            try {
+                const response = await fetch('/api/lookup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: currentType, query: query })
+                });
+
+                const data = await response.json();
+                loading.classList.add('hidden');
+
+                if (data.error) {
+                    showError(data.error);
+                    return;
+                }
+
+                displayResults(data.data);
+            } catch (err) {
+                loading.classList.add('hidden');
+                showError('Connection error. Please try again.');
+            }
+        }
+
+        function displayResults(data) {
+            const results = document.getElementById('results');
+            results.classList.remove('hidden');
+            results.innerHTML = formatData(data);
+        }
+
+        function formatData(data, level = 0) {
+            if (data === null || data === undefined) return '<span class="null-value">N/A</span>';
+
+            if (Array.isArray(data)) {
+                if (data.length === 0) return '<span class="null-value">Empty</span>';
+                let html = '<div class="array-container">';
+                data.forEach((item, i) => {
+                    html += `<div class="array-item">
+                        <span class="array-index">#${i + 1}</span>
+                        ${formatData(item, level + 1)}
+                    </div>`;
+                });
+                html += '</div>';
+                return html;
+            }
+
+            if (typeof data === 'object') {
+                let html = '<div class="data-grid">';
+                for (const [key, value] of Object.entries(data)) {
+                    const emoji = getEmoji(key.toLowerCase());
+                    if (typeof value === 'object' && value !== null) {
+                        html += `<div class="data-row nested">
+                            <div class="data-key">${emoji} ${formatKey(key)}</div>
+                            <div class="data-value">${formatData(value, level + 1)}</div>
+                        </div>`;
+                    } else {
+                        html += `<div class="data-row">
+                            <div class="data-key">${emoji} ${formatKey(key)}</div>
+                            <div class="data-value">${escapeHtml(String(value ?? 'N/A'))}</div>
+                        </div>`;
+                    }
+                }
+                html += '</div>';
+                return html;
+            }
+
+            return `<span>${escapeHtml(String(data))}</span>`;
+        }
+
+        function formatKey(key) {
+            return key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        }
+
+        function getEmoji(key) {
+            const map = {
+                'name': '👤', 'fname': '👤', 'lname': '👤',
+                'address': '🏠', 'state': '🗺️', 'city': '🏙️',
+                'district': '🏙️', 'pincode': '📮', 'pin': '📮',
+                'dob': '🎂', 'age': '🎂', 'gender': '⚧️',
+                'mobile': '📱', 'phone': '📱', 'number': '📱',
+                'email': '📧', 'aadhar': '🪪', 'uid': '🆔',
+                'pan': '💳', 'photo': '📸', 'image': '📸',
+                'status': '✅', 'error': '❌', 'data': '📂',
+                'level': '📊', 'rank': '🏆', 'kills': '💀',
+                'username': '👤', 'guild': '⚔️'
+            };
+            for (const [k, v] of Object.entries(map)) {
+                if (key.includes(k)) return v;
+            }
+            return '🔹';
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function showError(msg) {
+            const error = document.getElementById('error');
+            error.classList.remove('hidden');
+            error.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${msg}`;
+        }
+
+        // Enter key support
+        document.getElementById('searchInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') performSearch();
+        });
+
+        // Smooth scroll
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                e.preventDefault();
+                document.querySelector(this.getAttribute('href')).scrollIntoView({
+                    behavior: 'smooth'
+                });
+            });
+        });
+    </script>
+</body>
+</html>
