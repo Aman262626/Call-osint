@@ -12,7 +12,5 @@ services:
         sync: false
       - key: API_KEY
         sync: false
-      - key: PORT
-        value: "5000"
       - key: PYTHON_VERSION
         value: "3.11.0"

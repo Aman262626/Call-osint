@@ -81,7 +81,8 @@ Bot + Website dono start ho jayenge!
    | `BOT_TOKEN` | Your Telegram bot token |
    | `ADMIN_ID` | Your Telegram user ID |
    | `API_KEY` | Your OSINT API key |
-   | `PORT` | `5000` |
+
+   ⚠️ **PORT mat daalo** — Render khud PORT set karta hai!
 
 6. **"Create Web Service"** click karo
 
