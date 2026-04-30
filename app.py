@@ -1,10 +1,7 @@
-import json
-import threading
 import logging
 
 from flask import Flask, render_template, request, jsonify
 
-from config import FLASK_PORT
 from api_client import (
     number_lookup,
     aadhar_lookup,
@@ -65,10 +62,7 @@ def health():
     return jsonify({"status": "ok", "service": "Call OSINT"})
 
 
-def run_web():
-    """Run the Flask web server."""
-    app.run(host="0.0.0.0", port=FLASK_PORT)
-
-
 if __name__ == "__main__":
-    run_web()
+    import os
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)

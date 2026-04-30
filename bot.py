@@ -1,6 +1,5 @@
-import json
 import os
-import tempfile
+import re
 import logging
 from datetime import datetime
 
@@ -10,7 +9,6 @@ from telegram.ext import (
     CommandHandler,
     CallbackQueryHandler,
     MessageHandler,
-    ConversationHandler,
     ContextTypes,
     filters,
 )
@@ -32,9 +30,40 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Conversation states
-WAITING_INPUT = 0
-current_action = {}
+
+# ─── Input Detection ───────────────────────────────────────
+
+def detect_input_type(text: str) -> str:
+    """Auto-detect what the user entered.
+    
+    Returns: 'mobile', 'aadhar', 'ff_uid', 'bgmi_uid', 'snapchat'
+    """
+    text = text.strip()
+
+    # 10-digit number → Mobile number
+    if re.match(r"^\d{10}$", text):
+        return "mobile"
+
+    # 12-digit number → Aadhar number
+    if re.match(r"^\d{12}$", text):
+        return "aadhar"
+
+    # 7-9 digit number → Could be Free Fire UID
+    if re.match(r"^\d{7,9}$", text):
+        return "ff_uid"
+
+    # 10+ digit number (not 10 or 12) → Could be BGMI UID
+    if re.match(r"^\d{10,}$", text) and len(text) != 12:
+        return "bgmi_uid"
+
+    # Pure digits of other lengths → try as game UID
+    if re.match(r"^\d+$", text):
+        if len(text) <= 9:
+            return "ff_uid"
+        return "bgmi_uid"
+
+    # Text (non-numeric) → Snapchat username
+    return "snapchat"
 
 
 # ─── Formatters ────────────────────────────────────────────
@@ -66,71 +95,30 @@ def format_dict(data, indent=0) -> str:
 def _get_emoji_for_key(key: str) -> str:
     """Return an emoji based on key name."""
     emoji_map = {
-        "name": "👤",
-        "fname": "👤",
-        "lname": "👤",
-        "first_name": "👤",
-        "last_name": "👤",
-        "full_name": "👤",
-        "father": "👨",
-        "mother": "👩",
-        "address": "🏠",
-        "addr": "🏠",
-        "state": "🗺️",
-        "district": "🏙️",
-        "city": "🏙️",
-        "pincode": "📮",
-        "pin": "📮",
-        "zip": "📮",
-        "dob": "🎂",
-        "date_of_birth": "🎂",
-        "age": "🎂",
-        "gender": "⚧️",
-        "sex": "⚧️",
-        "mobile": "📱",
-        "phone": "📱",
-        "number": "📱",
-        "num": "📱",
-        "email": "📧",
-        "mail": "📧",
-        "aadhar": "🪪",
-        "aadhaar": "🪪",
-        "uid": "🆔",
-        "id": "🆔",
-        "pan": "💳",
-        "voter": "🗳️",
-        "photo": "📸",
-        "image": "📸",
-        "pic": "📸",
-        "status": "✅",
-        "result": "📊",
-        "data": "📂",
-        "info": "ℹ️",
-        "level": "📊",
-        "rank": "🏆",
-        "score": "🎯",
-        "kills": "💀",
-        "wins": "🏆",
-        "matches": "🎮",
-        "guild": "⚔️",
-        "clan": "⚔️",
-        "username": "👤",
-        "snap": "👻",
-        "snapchat": "👻",
-        "bitmoji": "🎭",
-        "avatar": "🎭",
-        "family": "👨‍👩‍👧‍👦",
-        "relation": "🔗",
-        "member": "👥",
-        "operator": "📡",
-        "carrier": "📡",
-        "provider": "📡",
-        "location": "📍",
-        "country": "🌍",
-        "region": "🌐",
-        "error": "❌",
-        "message": "💬",
-        "msg": "💬",
+        "name": "👤", "fname": "👤", "lname": "👤",
+        "first_name": "👤", "last_name": "👤", "full_name": "👤",
+        "father": "👨", "mother": "👩",
+        "address": "🏠", "addr": "🏠",
+        "state": "🗺️", "district": "🏙️", "city": "🏙️",
+        "pincode": "📮", "pin": "📮", "zip": "📮",
+        "dob": "🎂", "date_of_birth": "🎂", "age": "🎂",
+        "gender": "⚧️", "sex": "⚧️",
+        "mobile": "📱", "phone": "📱", "number": "📱", "num": "📱",
+        "email": "📧", "mail": "📧",
+        "aadhar": "🪪", "aadhaar": "🪪",
+        "uid": "🆔", "id": "🆔",
+        "pan": "💳", "voter": "🗳️",
+        "photo": "📸", "image": "📸", "pic": "📸",
+        "status": "✅", "result": "📊", "data": "📂", "info": "ℹ️",
+        "level": "📊", "rank": "🏆", "score": "🎯",
+        "kills": "💀", "wins": "🏆", "matches": "🎮",
+        "guild": "⚔️", "clan": "⚔️",
+        "username": "👤", "snap": "👻", "snapchat": "👻",
+        "bitmoji": "🎭", "avatar": "🎭",
+        "family": "👨‍👩‍👧‍👦", "relation": "🔗", "member": "👥",
+        "operator": "📡", "carrier": "📡", "provider": "📡",
+        "location": "📍", "country": "🌍", "region": "🌐",
+        "error": "❌", "message": "💬", "msg": "💬",
     }
     for k, emoji in emoji_map.items():
         if k in key:
@@ -138,76 +126,16 @@ def _get_emoji_for_key(key: str) -> str:
     return "🔹"
 
 
-def build_result_text(title: str, data: dict) -> str:
-    """Build a beautiful formatted result message."""
+def build_section(title: str, data: dict) -> str:
+    """Build a formatted section for one lookup result."""
     separator = "━" * 25
-    header = f"""
-{separator}
-🔍 <b>{title}</b>
-{separator}
-
-"""
-    body = format_dict(data)
-    footer = f"""
-
-{separator}
-⏰ <i>{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}</i>
-🤖 <b>Call OSINT Bot</b>
-{separator}"""
-    return header + body + footer
-
-
-# ─── Deep Lookup (Number → Aadhar → Family) ────────────────
-
-async def deep_lookup(number: str) -> str:
-    """Perform a deep lookup: Number → Aadhar → Family."""
-    results = []
-
-    # Step 1: Number lookup
-    try:
-        num_data = number_lookup(number)
-        results.append(("📱 Number Lookup", num_data))
-    except Exception as e:
-        results.append(("📱 Number Lookup", {"error": str(e)}))
-        num_data = {}
-
-    # Step 2: Try to find Aadhar from number data
-    aadhar_nums = _extract_aadhar_numbers(num_data)
-
-    if aadhar_nums:
-        for aadhar_num in aadhar_nums:
-            # Aadhar lookup
-            try:
-                aadhar_data = aadhar_lookup(aadhar_num)
-                results.append((f"🪪 Aadhar Lookup ({aadhar_num})", aadhar_data))
-            except Exception as e:
-                results.append((f"🪪 Aadhar Lookup ({aadhar_num})", {"error": str(e)}))
-
-            # Family lookup
-            try:
-                family_data = aadhar_family(aadhar_num)
-                results.append((f"👨‍👩‍👧‍👦 Family Search ({aadhar_num})", family_data))
-            except Exception as e:
-                results.append(
-                    (f"👨‍👩‍👧‍👦 Family Search ({aadhar_num})", {"error": str(e)})
-                )
-
-    # Build combined result
-    separator = "━" * 25
-    text = f"\n{separator}\n🔍 <b>DEEP OSINT LOOKUP</b>\n📱 <b>Number:</b> <code>{number}</code>\n{separator}\n\n"
-
-    for title, data in results:
-        text += f"▶️ <b>{title}</b>\n"
-        text += format_dict(data)
-        text += f"\n{'─' * 20}\n\n"
-
-    text += f"""
-{separator}
-⏰ <i>{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}</i>
-🤖 <b>Call OSINT Bot - Deep Lookup</b>
-{separator}"""
+    text = f"\n{separator}\n🔍 <b>{title}</b>\n{separator}\n\n"
+    text += format_dict(data)
+    text += "\n"
     return text
 
+
+# ─── Extract Aadhar numbers from API response ─────────────
 
 def _extract_aadhar_numbers(data, found=None) -> list:
     """Recursively extract Aadhar numbers from API response."""
@@ -215,9 +143,7 @@ def _extract_aadhar_numbers(data, found=None) -> list:
         found = []
     if isinstance(data, dict):
         for key, value in data.items():
-            if any(
-                k in key.lower() for k in ["aadhar", "aadhaar", "adhar", "uid_number"]
-            ):
+            if any(k in key.lower() for k in ["aadhar", "aadhaar", "adhar", "uid_number"]):
                 if isinstance(value, str) and len(value) == 12 and value.isdigit():
                     if value not in found:
                         found.append(value)
@@ -229,204 +155,218 @@ def _extract_aadhar_numbers(data, found=None) -> list:
     return found
 
 
-# ─── Bot Handlers ──────────────────────────────────────────
+def _extract_numbers(data, found=None) -> list:
+    """Recursively extract mobile numbers from API response."""
+    if found is None:
+        found = []
+    if isinstance(data, dict):
+        for key, value in data.items():
+            if any(k in key.lower() for k in ["mobile", "phone", "number", "num", "contact"]):
+                if isinstance(value, str) and len(value) == 10 and value.isdigit():
+                    if value not in found:
+                        found.append(value)
+            elif isinstance(value, (dict, list)):
+                _extract_numbers(value, found)
+    elif isinstance(data, list):
+        for item in data:
+            _extract_numbers(item, found)
+    return found
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /start command."""
-    welcome = """
-━━━━━━━━━━━━━━━━━━━━━━━━━
-🔥 <b>CALL OSINT BOT</b> 🔥
-━━━━━━━━━━━━━━━━━━━━━━━━━
 
-🛡️ <b>Advanced OSINT Lookup Tool</b>
+# ─── Auto Chain Lookup ─────────────────────────────────────
 
-📱 <b>/number</b> — Mobile Number Lookup
-🪪 <b>/aadhar</b> — Aadhar Card Lookup
-👨‍👩‍👧‍👦 <b>/family</b> — Aadhar Family Search
-🎮 <b>/ff</b> — Free Fire UID Lookup
-🎮 <b>/bgmi</b> — BGMI UID Lookup
-👻 <b>/snap</b> — Snapchat Username Lookup
-🔍 <b>/deep</b> — Deep Lookup (Number → Aadhar → Family)
+async def auto_chain_mobile(number: str, update: Update):
+    """Full auto chain: Mobile → Number Info → Aadhar → Aadhar Info → Family."""
+    sections = []
+    all_text = ""
 
-━━━━━━━━━━━━━━━━━━━━━━━━━
-💡 <i>Click any button below or use commands!</i>
-━━━━━━━━━━━━━━━━━━━━━━━━━
+    separator = "━" * 25
+    header = f"""
+{separator}
+🔥 <b>AUTO OSINT SCAN</b> 🔥
+📱 <b>Input:</b> <code>{number}</code>
+🔎 <b>Type:</b> Mobile Number
+{separator}
 """
-    keyboard = [
-        [
-            InlineKeyboardButton("📱 Number", callback_data="number"),
-            InlineKeyboardButton("🪪 Aadhar", callback_data="aadhar"),
-        ],
-        [
-            InlineKeyboardButton("👨‍👩‍👧‍👦 Family", callback_data="family"),
-            InlineKeyboardButton("🔍 Deep Lookup", callback_data="deep"),
-        ],
-        [
-            InlineKeyboardButton("🎮 Free Fire", callback_data="ff"),
-            InlineKeyboardButton("🎮 BGMI", callback_data="bgmi"),
-        ],
-        [
-            InlineKeyboardButton("👻 Snapchat", callback_data="snap"),
-        ],
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text(welcome, parse_mode="HTML", reply_markup=reply_markup)
+    all_text += header
 
+    # Step 1: Number Lookup
+    step_msg = await update.message.reply_text(
+        "⏳ <b>Step 1/3:</b> 📱 Number Lookup...", parse_mode="HTML"
+    )
+    try:
+        num_data = number_lookup(number)
+        section = build_section("📱 STEP 1 — Number Lookup", num_data)
+        all_text += section
+        await safe_send(update, section)
+    except Exception as e:
+        num_data = {}
+        all_text += f"\n❌ Number Lookup Failed: {e}\n"
+        await update.message.reply_text(f"❌ Number Lookup Error: <code>{e}</code>", parse_mode="HTML")
 
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /help command."""
-    help_text = """
-🆘 <b>HELP - Call OSINT Bot</b>
+    await step_msg.delete()
 
-📱 <b>/number</b> <code>[mobile number]</code>
-   Search any mobile number for details
-
-🪪 <b>/aadhar</b> <code>[aadhar number]</code>
-   Search Aadhar card details
-
-👨‍👩‍👧‍👦 <b>/family</b> <code>[aadhar number]</code>
-   Search family members via Aadhar
-
-🎮 <b>/ff</b> <code>[uid]</code>
-   Search Free Fire player info
-
-🎮 <b>/bgmi</b> <code>[uid]</code>
-   Search BGMI player info
-
-👻 <b>/snap</b> <code>[username]</code>
-   Search Snapchat profile info
-
-🔍 <b>/deep</b> <code>[mobile number]</code>
-   Deep lookup: Number → Aadhar → Family
-
-💡 <i>You can also use the buttons from /start</i>
-"""
-    await update.message.reply_text(help_text, parse_mode="HTML")
-
-
-async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle inline keyboard button presses."""
-    query = update.callback_query
-    await query.answer()
-
-    action = query.data
-    user_id = query.from_user.id
-    current_action[user_id] = action
-
-    prompts = {
-        "number": "📱 <b>Enter Mobile Number:</b>\n\n<i>Example: 9876543210</i>",
-        "aadhar": "🪪 <b>Enter Aadhar Number:</b>\n\n<i>Example: 393933081942</i>",
-        "family": "👨‍👩‍👧‍👦 <b>Enter Aadhar Number for Family Search:</b>\n\n<i>Example: 984154610245</i>",
-        "ff": "🎮 <b>Enter Free Fire UID:</b>\n\n<i>Example: 123456789</i>",
-        "bgmi": "🎮 <b>Enter BGMI UID:</b>\n\n<i>Example: 5121439477</i>",
-        "snap": "👻 <b>Enter Snapchat Username:</b>\n\n<i>Example: priyapanchal272</i>",
-        "deep": "🔍 <b>Enter Mobile Number for Deep Lookup:</b>\n\n<i>This will search: Number → Aadhar → Family</i>",
-    }
-
-    prompt = prompts.get(action, "Enter input:")
-    await query.message.reply_text(prompt, parse_mode="HTML")
-    return WAITING_INPUT
-
-
-async def handle_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle direct commands with arguments."""
-    command = update.message.text.split()[0].replace("/", "").replace("@", "").split("@")[0]
-    args = update.message.text.split()[1:] if len(update.message.text.split()) > 1 else []
-
-    if not args:
-        user_id = update.message.from_user.id
-        current_action[user_id] = command
-        prompts = {
-            "number": "📱 <b>Enter Mobile Number:</b>",
-            "aadhar": "🪪 <b>Enter Aadhar Number:</b>",
-            "family": "👨‍👩‍👧‍👦 <b>Enter Aadhar Number:</b>",
-            "ff": "🎮 <b>Enter Free Fire UID:</b>",
-            "bgmi": "🎮 <b>Enter BGMI UID:</b>",
-            "snap": "👻 <b>Enter Snapchat Username:</b>",
-            "deep": "🔍 <b>Enter Mobile Number:</b>",
-        }
-        await update.message.reply_text(
-            prompts.get(command, "Enter input:"), parse_mode="HTML"
-        )
-        return WAITING_INPUT
-
-    input_text = args[0]
-    await process_lookup(update, command, input_text)
-    return ConversationHandler.END
-
-
-async def handle_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle user text input after selecting an action."""
-    user_id = update.message.from_user.id
-    action = current_action.get(user_id)
-
-    if not action:
-        await update.message.reply_text(
-            "⚠️ <b>Please select an option first!</b>\n\nUse /start to see available options.",
+    # Step 2: Extract Aadhar & lookup
+    aadhar_nums = _extract_aadhar_numbers(num_data)
+    if aadhar_nums:
+        step_msg = await update.message.reply_text(
+            f"⏳ <b>Step 2/3:</b> 🪪 Found {len(aadhar_nums)} Aadhar(s) — Looking up...",
             parse_mode="HTML",
         )
-        return ConversationHandler.END
+        for aadhar_num in aadhar_nums:
+            try:
+                aadhar_data = aadhar_lookup(aadhar_num)
+                section = build_section(f"🪪 STEP 2 — Aadhar Lookup ({aadhar_num})", aadhar_data)
+                all_text += section
+                await safe_send(update, section)
+            except Exception as e:
+                all_text += f"\n❌ Aadhar Lookup ({aadhar_num}) Failed: {e}\n"
 
-    input_text = update.message.text.strip()
-    await process_lookup(update, action, input_text)
-    current_action.pop(user_id, None)
-    return ConversationHandler.END
+            # Step 3: Family search from each Aadhar
+            try:
+                family_data = aadhar_family(aadhar_num)
+                section = build_section(f"👨‍👩‍👧‍👦 STEP 3 — Family Search ({aadhar_num})", family_data)
+                all_text += section
+                await safe_send(update, section)
+            except Exception as e:
+                all_text += f"\n❌ Family Search ({aadhar_num}) Failed: {e}\n"
+
+        await step_msg.delete()
+    else:
+        await update.message.reply_text(
+            "ℹ️ <b>Step 2:</b> No Aadhar found in number data — skipping Aadhar & Family lookup",
+            parse_mode="HTML",
+        )
+
+    # Footer
+    footer = f"""
+{separator}
+✅ <b>SCAN COMPLETE</b>
+⏰ <i>{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}</i>
+🤖 <b>Call OSINT Bot — Auto Scan</b>
+{separator}"""
+    all_text += footer
+    await update.message.reply_text(footer, parse_mode="HTML")
+
+    # Send PDF
+    await send_pdf(update, f"Auto Scan — {number}", all_text)
 
 
-async def process_lookup(update: Update, action: str, input_text: str):
-    """Process the lookup based on action type."""
-    wait_msg = await update.message.reply_text("⏳ <b>Searching... Please wait!</b>", parse_mode="HTML")
+async def auto_chain_aadhar(aadhar_num: str, update: Update):
+    """Full auto chain: Aadhar → Info → Family → Extract numbers → Number lookup."""
+    all_text = ""
+    separator = "━" * 25
 
+    header = f"""
+{separator}
+🔥 <b>AUTO OSINT SCAN</b> 🔥
+🪪 <b>Input:</b> <code>{aadhar_num}</code>
+🔎 <b>Type:</b> Aadhar Number
+{separator}
+"""
+    all_text += header
+
+    # Step 1: Aadhar lookup
+    step_msg = await update.message.reply_text(
+        "⏳ <b>Step 1/3:</b> 🪪 Aadhar Lookup...", parse_mode="HTML"
+    )
+    aadhar_data = {}
     try:
-        if action == "number":
-            data = number_lookup(input_text)
-            title = f"📱 Number Lookup — {input_text}"
-        elif action == "aadhar":
-            data = aadhar_lookup(input_text)
-            title = f"🪪 Aadhar Lookup — {input_text}"
-        elif action == "family":
-            data = aadhar_family(input_text)
-            title = f"👨‍👩‍👧‍👦 Family Search — {input_text}"
-        elif action == "ff":
-            data = freefire_lookup(input_text)
-            title = f"🎮 Free Fire Lookup — {input_text}"
-        elif action == "bgmi":
-            data = bgmi_lookup(input_text)
-            title = f"🎮 BGMI Lookup — {input_text}"
-        elif action == "snap":
-            data = snapchat_lookup(input_text)
-            title = f"👻 Snapchat Lookup — {input_text}"
-        elif action == "deep":
-            result_text = await deep_lookup(input_text)
-            await safe_send(update, result_text)
-            # Send PDF
-            await send_pdf(update, f"Deep Lookup — {input_text}", result_text)
-            await wait_msg.delete()
-            return
-        else:
-            await wait_msg.edit_text("❌ <b>Unknown action!</b>", parse_mode="HTML")
-            return
-
-        result_text = build_result_text(title, data)
-        await safe_send(update, result_text)
-
-        # Send PDF
-        await send_pdf(update, title, result_text)
-        await wait_msg.delete()
-
+        aadhar_data = aadhar_lookup(aadhar_num)
+        section = build_section("🪪 STEP 1 — Aadhar Lookup", aadhar_data)
+        all_text += section
+        await safe_send(update, section)
     except Exception as e:
-        logger.error(f"Lookup error: {e}")
-        error_text = f"""
-━━━━━━━━━━━━━━━━━━━━━━━━━
-❌ <b>ERROR</b>
-━━━━━━━━━━━━━━━━━━━━━━━━━
+        all_text += f"\n❌ Aadhar Lookup Failed: {e}\n"
+        await update.message.reply_text(f"❌ Aadhar Lookup Error: <code>{e}</code>", parse_mode="HTML")
+    await step_msg.delete()
 
-⚠️ <b>Error:</b> <code>{str(e)}</code>
-🔄 <i>Please try again later</i>
+    # Step 2: Family search
+    step_msg = await update.message.reply_text(
+        "⏳ <b>Step 2/3:</b> 👨‍👩‍👧‍👦 Family Search...", parse_mode="HTML"
+    )
+    family_data = {}
+    try:
+        family_data = aadhar_family(aadhar_num)
+        section = build_section("👨‍👩‍👧‍👦 STEP 2 — Family Search", family_data)
+        all_text += section
+        await safe_send(update, section)
+    except Exception as e:
+        all_text += f"\n❌ Family Search Failed: {e}\n"
+    await step_msg.delete()
 
-━━━━━━━━━━━━━━━━━━━━━━━━━"""
-        await wait_msg.edit_text(error_text, parse_mode="HTML")
+    # Step 3: Extract mobile numbers from aadhar/family data and look them up
+    all_numbers = _extract_numbers(aadhar_data) + _extract_numbers(family_data)
+    unique_numbers = list(dict.fromkeys(all_numbers))
 
+    if unique_numbers:
+        step_msg = await update.message.reply_text(
+            f"⏳ <b>Step 3/3:</b> 📱 Found {len(unique_numbers)} number(s) — Looking up...",
+            parse_mode="HTML",
+        )
+        for num in unique_numbers:
+            try:
+                num_data = number_lookup(num)
+                section = build_section(f"📱 STEP 3 — Number Lookup ({num})", num_data)
+                all_text += section
+                await safe_send(update, section)
+            except Exception as e:
+                all_text += f"\n❌ Number Lookup ({num}) Failed: {e}\n"
+        await step_msg.delete()
+    else:
+        await update.message.reply_text(
+            "ℹ️ <b>Step 3:</b> No mobile numbers found — skipping number lookup",
+            parse_mode="HTML",
+        )
+
+    # Footer
+    footer = f"""
+{separator}
+✅ <b>SCAN COMPLETE</b>
+⏰ <i>{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}</i>
+🤖 <b>Call OSINT Bot — Auto Scan</b>
+{separator}"""
+    all_text += footer
+    await update.message.reply_text(footer, parse_mode="HTML")
+    await send_pdf(update, f"Auto Scan — {aadhar_num}", all_text)
+
+
+async def single_lookup(input_text: str, lookup_type: str, update: Update):
+    """Single lookup for FF, BGMI, Snapchat."""
+    separator = "━" * 25
+    type_labels = {
+        "ff_uid": ("🎮 Free Fire Lookup", freefire_lookup),
+        "bgmi_uid": ("🎯 BGMI Lookup", bgmi_lookup),
+        "snapchat": ("👻 Snapchat Lookup", snapchat_lookup),
+    }
+
+    label, lookup_fn = type_labels[lookup_type]
+
+    step_msg = await update.message.reply_text(
+        f"⏳ <b>{label}...</b>", parse_mode="HTML"
+    )
+    try:
+        data = lookup_fn(input_text)
+        section = build_section(f"{label} — {input_text}", data)
+
+        footer = f"""
+{separator}
+✅ <b>LOOKUP COMPLETE</b>
+⏰ <i>{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}</i>
+🤖 <b>Call OSINT Bot</b>
+{separator}"""
+
+        full_text = section + footer
+        await safe_send(update, full_text)
+        await send_pdf(update, f"{label} — {input_text}", full_text)
+    except Exception as e:
+        await update.message.reply_text(
+            f"❌ <b>{label} Error:</b> <code>{e}</code>", parse_mode="HTML"
+        )
+    await step_msg.delete()
+
+
+# ─── Message Utilities ─────────────────────────────────────
 
 async def safe_send(update: Update, text: str):
     """Send a long message, splitting if needed (Telegram limit is 4096 chars)."""
@@ -444,7 +384,8 @@ async def safe_send(update: Update, text: str):
             parts.append(text[:split_at])
             text = text[split_at:]
         for part in parts:
-            await update.message.reply_text(part, parse_mode="HTML")
+            if part.strip():
+                await update.message.reply_text(part, parse_mode="HTML")
 
 
 async def send_pdf(update: Update, title: str, text: str):
@@ -455,7 +396,7 @@ async def send_pdf(update: Update, title: str, text: str):
             await update.message.reply_document(
                 document=pdf_file,
                 filename=f"OSINT_Report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
-                caption="📄 <b>PDF Report Generated!</b>",
+                caption="📄 <b>PDF Report — Download karo!</b>",
                 parse_mode="HTML",
             )
         os.unlink(pdf_path)
@@ -466,42 +407,143 @@ async def send_pdf(update: Update, title: str, text: str):
         )
 
 
-async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Cancel conversation."""
-    user_id = update.message.from_user.id
-    current_action.pop(user_id, None)
-    await update.message.reply_text("❌ <b>Cancelled!</b>", parse_mode="HTML")
-    return ConversationHandler.END
+# ─── Bot Handlers ──────────────────────────────────────────
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /start command."""
+    welcome = """
+━━━━━━━━━━━━━━━━━━━━━━━━━
+🔥 <b>CALL OSINT BOT</b> 🔥
+━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🛡️ <b>Advanced Auto OSINT Tool</b>
+
+💡 <b>Koi bhi cheez daalo — Bot khud detect karega!</b>
+
+📱 <b>10-digit number</b> → Mobile Lookup → Aadhar → Family (Auto Chain)
+🪪 <b>12-digit number</b> → Aadhar Lookup → Family → Numbers (Auto Chain)
+🎮 <b>7-9 digit number</b> → Free Fire UID Lookup
+🎯 <b>10+ digit (non-mobile)</b> → BGMI UID Lookup
+👻 <b>Text/username</b> → Snapchat Lookup
+
+━━━━━━━━━━━━━━━━━━━━━━━━━
+⚡ <b>Sirf ek input daalo — baaki sab auto!</b>
+📄 <b>Har result ka PDF bhi milega!</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━
+
+👇 <i>Abhi kuch bhi type karo ya button click karo!</i>
+"""
+    keyboard = [
+        [
+            InlineKeyboardButton("📱 Number Scan", callback_data="hint_number"),
+            InlineKeyboardButton("🪪 Aadhar Scan", callback_data="hint_aadhar"),
+        ],
+        [
+            InlineKeyboardButton("🎮 Free Fire", callback_data="hint_ff"),
+            InlineKeyboardButton("🎯 BGMI", callback_data="hint_bgmi"),
+        ],
+        [
+            InlineKeyboardButton("👻 Snapchat", callback_data="hint_snap"),
+        ],
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text(welcome, parse_mode="HTML", reply_markup=reply_markup)
+
+
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /help command."""
+    help_text = """
+🆘 <b>HELP — Call OSINT Bot</b>
+
+💡 <b>Auto-Detect Mode (Default):</b>
+Sirf kuch bhi type karo — bot khud samjh jayega!
+
+📱 <b>Mobile Number (10 digits)</b>
+   → Auto: Number → Aadhar → Family
+
+🪪 <b>Aadhar Number (12 digits)</b>
+   → Auto: Aadhar → Family → Numbers
+
+🎮 <b>Free Fire UID (7-9 digits)</b>
+   → Player info lookup
+
+🎯 <b>BGMI UID (10+ digits)</b>
+   → Player info lookup
+
+👻 <b>Snapchat Username (text)</b>
+   → Profile lookup
+
+━━━━━━━━━━━━━━━━━━━━━━━━━
+📄 <b>Har result ka PDF auto milega!</b>
+⚡ <b>Koi command ki zaroorat nahi!</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━
+"""
+    await update.message.reply_text(help_text, parse_mode="HTML")
+
+
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle inline keyboard buttons — just show hints."""
+    query = update.callback_query
+    await query.answer()
+
+    hints = {
+        "hint_number": "📱 <b>Mobile number type karo (10 digits):</b>\n\n<i>Example: 9876543210</i>\n\n⚡ Auto: Number → Aadhar → Family sab nikal aayega!",
+        "hint_aadhar": "🪪 <b>Aadhar number type karo (12 digits):</b>\n\n<i>Example: 393933081942</i>\n\n⚡ Auto: Aadhar → Family → Numbers sab nikal aayega!",
+        "hint_ff": "🎮 <b>Free Fire UID type karo (7-9 digits):</b>\n\n<i>Example: 123456789</i>",
+        "hint_bgmi": "🎯 <b>BGMI UID type karo (10+ digits):</b>\n\n<i>Example: 5121439477</i>",
+        "hint_snap": "👻 <b>Snapchat username type karo:</b>\n\n<i>Example: priyapanchal272</i>",
+    }
+
+    hint = hints.get(query.data, "Kuch bhi type karo!")
+    await query.message.reply_text(hint, parse_mode="HTML")
+
+
+async def auto_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle any text message — auto-detect and process."""
+    text = update.message.text.strip()
+
+    if not text or text.startswith("/"):
+        return
+
+    input_type = detect_input_type(text)
+
+    # Show what was detected
+    type_names = {
+        "mobile": "📱 Mobile Number",
+        "aadhar": "🪪 Aadhar Number",
+        "ff_uid": "🎮 Free Fire UID",
+        "bgmi_uid": "🎯 BGMI UID",
+        "snapchat": "👻 Snapchat Username",
+    }
+
+    detect_msg = await update.message.reply_text(
+        f"🔎 <b>Detected:</b> {type_names[input_type]}\n⚡ <b>Auto scanning...</b>",
+        parse_mode="HTML",
+    )
+
+    if input_type == "mobile":
+        await auto_chain_mobile(text, update)
+    elif input_type == "aadhar":
+        await auto_chain_aadhar(text, update)
+    else:
+        await single_lookup(text, input_type, update)
+
+    try:
+        await detect_msg.delete()
+    except Exception:
+        pass
 
 
 def run_bot():
     """Start the Telegram bot."""
     app = Application.builder().token(BOT_TOKEN).build()
 
-    conv_handler = ConversationHandler(
-        entry_points=[
-            CommandHandler("number", handle_command),
-            CommandHandler("aadhar", handle_command),
-            CommandHandler("family", handle_command),
-            CommandHandler("ff", handle_command),
-            CommandHandler("bgmi", handle_command),
-            CommandHandler("snap", handle_command),
-            CommandHandler("deep", handle_command),
-            CallbackQueryHandler(button_handler),
-        ],
-        states={
-            WAITING_INPUT: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_input),
-            ],
-        },
-        fallbacks=[CommandHandler("cancel", cancel)],
-    )
-
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", help_command))
-    app.add_handler(conv_handler)
+    app.add_handler(CallbackQueryHandler(button_handler))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, auto_handler))
 
-    logger.info("🤖 Bot started!")
+    logger.info("🤖 Bot started — Auto-detect mode!")
     app.run_polling(drop_pending_updates=True)
 
 

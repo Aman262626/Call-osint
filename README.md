@@ -1,104 +1,91 @@
-# 🔒 Call OSINT — Advanced OSINT Lookup Bot & Website
+# 🔒 Call OSINT — Auto OSINT Lookup Bot & Website
 
-> Telegram Bot + Web Dashboard for OSINT lookups — Number, Aadhar, Family, Free Fire, BGMI, Snapchat
+> Telegram Bot + Web Dashboard — Sirf ek input daalo, baaki sab automatic!
+
+---
+
+## 🔥 How It Works
+
+**Koi command ki zaroorat nahi!** Bot khud detect karta hai:
+
+| Input Type | Example | Auto Action |
+|-----------|---------|-------------|
+| 📱 10-digit number | `9876543210` | Number → Aadhar → Family (full chain) |
+| 🪪 12-digit number | `393933081942` | Aadhar → Family → Numbers (full chain) |
+| 🎮 7-9 digit number | `123456789` | Free Fire UID Lookup |
+| 🎯 10+ digits (non-mobile) | `5121439477` | BGMI UID Lookup |
+| 👻 Text/username | `priyapanchal272` | Snapchat Lookup |
+
+**Har result ka PDF auto-download milta hai!**
 
 ---
 
 ## 🛡️ Features
 
-| Feature | Description |
-|---------|-------------|
-| 📱 **Number Lookup** | Mobile number details, operator, location |
-| 🪪 **Aadhar Lookup** | Aadhar card information search |
-| 👨‍👩‍👧‍👦 **Family Search** | Find family members via Aadhar |
-| 🎮 **Free Fire** | Free Fire player UID lookup |
-| 🎯 **BGMI** | BGMI player UID lookup |
-| 👻 **Snapchat** | Snapchat profile details |
-| 🔍 **Deep Lookup** | Number → Aadhar → Family (auto chain) |
-| 📄 **PDF Reports** | Download results as PDF |
-| 🌐 **Web Dashboard** | Beautiful dark-themed website |
-| 🤖 **Telegram Bot** | Interactive bot with inline buttons |
+- ⚡ **Auto-Detect** — Input type auto pehchaan ta hai
+- 🔗 **Auto-Chain** — Mobile se Aadhar, Aadhar se Family sab auto
+- 📄 **PDF Reports** — Har result ka PDF bot mein milega
+- 🎨 **Emoji Decorated** — Beautiful formatted results
+- 🌐 **Web Dashboard** — Dark themed website
+- 🤖 **Telegram Bot** — Inline buttons + auto mode
 
 ---
 
 ## 🚀 Quick Start
 
-### 1. Clone the repo
+### 1. Clone
 
 ```bash
 git clone https://github.com/Aman262626/Call-osint.git
 cd Call-osint
 ```
 
-### 2. Install dependencies
+### 2. Install
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 3. Set environment variables (optional)
-
-```bash
-export BOT_TOKEN="your-telegram-bot-token"
-export ADMIN_ID="your-telegram-id"
-export API_KEY="your-osint-api-key"
-export PORT=5000
-```
-
-### 4. Run
+### 3. Run
 
 ```bash
 python main.py
 ```
 
-This starts both the **Telegram bot** and the **web server** on port 5000.
+Bot + Website dono start ho jayenge!
 
 ---
 
-## 🤖 Bot Commands
-
-| Command | Description |
-|---------|-------------|
-| `/start` | Show main menu with buttons |
-| `/help` | Show all commands |
-| `/number <num>` | Number lookup |
-| `/aadhar <num>` | Aadhar lookup |
-| `/family <num>` | Aadhar family search |
-| `/ff <uid>` | Free Fire lookup |
-| `/bgmi <uid>` | BGMI lookup |
-| `/snap <username>` | Snapchat lookup |
-| `/deep <num>` | Deep lookup (Number → Aadhar → Family) |
-
----
-
-## 🌐 Deploy on Render
+## 🌐 Render Pe Free Deploy
 
 ### Step-by-step:
 
-1. **Push to GitHub** (this repo)
+1. **[render.com](https://dashboard.render.com)** pe jao — Sign up/Login
 
-2. **Go to [Render Dashboard](https://dashboard.render.com)**
+2. **New → Web Service** click karo
 
-3. **New → Web Service**
+3. **GitHub repo connect karo:** `Aman262626/Call-osint`
 
-4. **Connect your GitHub repo** `Aman262626/Call-osint`
-
-5. **Settings:**
+4. **Settings fill karo:**
    - **Name:** `call-osint`
-   - **Runtime:** `Docker`
-   - **Plan:** Free
+   - **Branch:** `base-branch`
+   - **Runtime:** `Python 3`
+   - **Build Command:** `pip install -r requirements.txt`
+   - **Start Command:** `python main.py`
+   - **Plan:** `Free`
 
-6. **Environment Variables:**
+5. **Environment Variables add karo:**
+
    | Key | Value |
    |-----|-------|
-   | `BOT_TOKEN` | Your Telegram bot token |
-   | `ADMIN_ID` | Your Telegram user ID |
-   | `API_KEY` | Your OSINT API key |
+   | `BOT_TOKEN` | `8491544250:AAEUCsJ_lT_2oNQWq4CcI0b2-x6g2h_2DvM` |
+   | `ADMIN_ID` | `5451167865` |
+   | `API_KEY` | `ft-key-tr-jzynhifn87aq` |
    | `PORT` | `5000` |
 
-7. **Click "Create Web Service"**
+6. **"Create Web Service"** click karo
 
-8. Wait for deployment — your site will be live at `https://call-osint.onrender.com`
+7. Wait for build — Site live hogi at `https://call-osint.onrender.com`
 
 ---
 
@@ -106,48 +93,32 @@ This starts both the **Telegram bot** and the **web server** on port 5000.
 
 ```
 Call-osint/
-├── main.py              # Entry point (runs bot + web)
-├── bot.py               # Telegram bot
+├── main.py              # Entry point (bot + web)
+├── bot.py               # Telegram bot (auto-detect mode)
 ├── app.py               # Flask web server
 ├── api_client.py        # OSINT API wrapper
 ├── config.py            # Configuration
 ├── pdf_generator.py     # PDF report generator
-├── requirements.txt     # Python dependencies
-├── Dockerfile           # Docker config for Render
-├── render.yaml          # Render blueprint
+├── requirements.txt     # Dependencies
+├── render.yaml          # Render blueprint (free plan)
 ├── templates/
 │   └── index.html       # Web dashboard
 └── static/
-    └── style.css        # Website styles
+    └── style.css        # Styles
 ```
-
----
-
-## 📸 Screenshots
-
-### Telegram Bot
-- Beautiful emoji-decorated responses
-- Inline keyboard buttons
-- PDF report download
-
-### Web Dashboard
-- Dark theme with gradient animations
-- Real-time API lookups
-- Mobile responsive
 
 ---
 
 ## ⚙️ Tech Stack
 
-- **Python 3.11**
-- **python-telegram-bot** — Telegram Bot API
+- **Python 3.11** — Runtime
+- **python-telegram-bot** — Bot API
 - **Flask** — Web framework
 - **FPDF2** — PDF generation
-- **Requests** — HTTP client
-- **Gunicorn** — Production WSGI server
+- **Render** — Free hosting
 
 ---
 
 ## 📄 License
 
-MIT License — Use freely!
+MIT License

@@ -1,8 +1,10 @@
 services:
   - type: web
     name: call-osint
-    runtime: docker
+    runtime: python
     plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
     envVars:
       - key: BOT_TOKEN
         value: "8491544250:AAEUCsJ_lT_2oNQWq4CcI0b2-x6g2h_2DvM"
@@ -12,3 +14,5 @@ services:
         value: "ft-key-tr-jzynhifn87aq"
       - key: PORT
         value: "5000"
+      - key: PYTHON_VERSION
+        value: "3.11.0"
